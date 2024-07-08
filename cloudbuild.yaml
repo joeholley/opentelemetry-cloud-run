@@ -24,17 +24,17 @@ steps:
     waitFor:
       - BUILD_SAMPLE_APP
 
-  - name: "gcr.io/cloud-builders/docker"
-    args: ["build", "-t", "${_IMAGE_COLLECTOR}", "./collector"]
-    id: BUILD_COLLECTOR
-    waitFor: ["-"]
-
-  - name: "gcr.io/cloud-builders/docker"
-    args: ["push", "${_IMAGE_COLLECTOR}"]
-    id: PUSH_COLLECTOR
-    waitFor:
-      - BUILD_COLLECTOR
-
+#  - name: "gcr.io/cloud-builders/docker"
+#    args: ["build", "-t", "${_IMAGE_COLLECTOR}", "./collector"]
+#    id: BUILD_COLLECTOR
+#    waitFor: ["-"]
+#
+#  - name: "gcr.io/cloud-builders/docker"
+#    args: ["push", "${_IMAGE_COLLECTOR}"]
+#    id: PUSH_COLLECTOR
+#    waitFor:
+#      - BUILD_COLLECTOR
+#
 #  - name: "ubuntu"
 #    env:
 #      - "IMAGE_APP=${_IMAGE_APP}"
@@ -81,14 +81,14 @@ steps:
 
 substitutions:
   _REGION: asia-northeast1 
-  _REGISTRY: ${_REGION}-docker.pkg.dev/${PROJECT_ID}/fm-test01-registry
+  _REGISTRY: ${_REGION}-docker.pkg.dev/${PROJECT_ID}/open-match
   _IMAGE_APP: ${_REGISTRY}/sample-app
-  _IMAGE_COLLECTOR: ${_REGISTRY}/collector
-#  _SA_NAME: run-otel-example-sa
+    #_IMAGE_COLLECTOR: ${_REGISTRY}/collector
+  _SA_NAME: run-otel-example-sa
 
 images:
   - ${_IMAGE_APP}
-  - ${_IMAGE_COLLECTOR}
+    #  - ${_IMAGE_COLLECTOR}
 
 # comment out the following line if you want to run Cloud Build with the existing
 # service account with the following roles.
@@ -97,7 +97,8 @@ images:
 # * roles/logging.logWriter
 # * roles/artifactregistry.createOnPushWriter
 # * roles/run.admin
-#serviceAccount: "projects/${PROJECT_ID}/serviceAccounts/${_SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
+serviceAccount: "projects/${PROJECT_ID}/serviceAccounts/${_SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
 
 options:
   dynamic_substitutions: true
+  logging: CLOUD_LOGGING_ONLY

@@ -26,14 +26,14 @@ spec:
         run.googleapis.com/container-dependencies: '{"app":["collector"]}'
     spec:
       containers:
-      - image: "%SAMPLE_APP_IMAGE%"
+      - image: asia-northeast1-docker.pkg.dev/mineral-concord-428807-s5/open-match/sample-app 
         name: app
         ports:
         - containerPort: 8080
         volumeMounts:
         - mountPath: /logging
           name: shared-logs
-      - image: "%OTELCOL_IMAGE%"
+      - image: asia-northeast1-docker.pkg.dev/mineral-concord-428807-s5/open-match/otel-collector-sidecar 
         name: collector
         startupProbe:
           httpGet:
