@@ -24,36 +24,19 @@ import (
 	"syscall"
 
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
-	"go.opentelemetry.io/otel/metric"
-	"go.opentelemetry.io/otel/metric/embedded"
+	"go.opentelemetry.io/otel/metric/instrument"
 	"go.opentelemetry.io/otel/propagation"
-	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
-	"go.opentelemetry.io/otel/sdk/resource"
+	"go.opentelemetry.io/otel/sdk/metric"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
 	"go.opentelemetry.io/otel/trace"
 )
 
 // Create channel to listen for signals.
 var signalChan chan (os.Signal) = make(chan os.Signal, 1)
-
-type MeterProvider struct {
-	embedded.MeterProvider
-}
-
-// set up metrics exporter and meter provider
-var serviceName = getEnv("K_SERVICE", "sample-cloud-run-app")
-
-var meter = otel.Meter("fm")
-var counter2, _ = meter.Int64Counter(
-	"prefix.example.com",
-	metric.WithUnit("1"),
-	metric.WithDescription("Number of calls to the API * 100"),
-)
+var counter instrument.Int64Counter
 
 func main() {
 	ctx := context.Background()
@@ -74,28 +57,21 @@ func main() {
 	otel.SetTracerProvider(tp)
 	otel.SetTextMapPropagator(propagation.TraceContext{})
 
-	r, err := resource.Merge(
-		resource.Default(),
-		resource.NewWithAttributes(
-			semconv.SchemaURL,
-			semconv.ServiceName(serviceName),
-		),
-	)
+	// set up metrics exporter and meter provider
 	exporter, err := otlpmetricgrpc.New(ctx,
 		otlpmetricgrpc.WithInsecure(),
 	)
 	if err != nil {
 		log.Fatalf("Error creating exporter: %s", err)
 	}
-	provider := sdkmetric.NewMeterProvider(
-		sdkmetric.WithReader(sdkmetric.NewPeriodicReader(exporter)),
-		sdkmetric.WithResource(r),
+	provider := metric.NewMeterProvider(
+		metric.WithReader(metric.NewPeriodicReader(exporter)),
 	)
 	defer provider.Shutdown(ctx)
 	meter := provider.Meter("example.com/metrics")
-	counter2, err = meter.Int64Counter("sidecar-sample-counter2")
+	counter, err = meter.Int64Counter("sidecar-sample-counter")
 	if err != nil {
-		log.Fatalf("Error creating counter2: %s", err)
+		log.Fatalf("Error creating counter: %s", err)
 	}
 
 	// SIGINT handles Ctrl+C locally.
@@ -135,13 +111,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	ctx := prop.Extract(r.Context(), propagation.HeaderCarrier(r.Header))
 	tp := otel.GetTracerProvider()
 	tracer := tp.Tracer("example.com/trace")
-
-	commonAttrs := []attribute.KeyValue{
-		attribute.String("", ""),
-	}
-	ctx, span := tracer.Start(ctx,
-		"foo",
-		trace.WithAttributes(commonAttrs...))
+	ctx, span := tracer.Start(ctx, "foo")
 	defer span.End()
 
 	// extract current span ID
@@ -165,8 +135,8 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, "Generated 10 spans!")
 
 	// update metric
-	counter2.Add(ctx, 100)
-	fmt.Fprintln(w, "Updated sidecar-sample-counter2 metric!")
+	counter.Add(ctx, 100)
+	fmt.Fprintln(w, "Updated sidecar-sample-counter metric!")
 }
 
 func generateSpans(ctx context.Context, tracer trace.Tracer, logger *log.Logger, id int) {
@@ -182,11 +152,4 @@ func generateSpans(ctx context.Context, tracer trace.Tracer, logger *log.Logger,
 	} else {
 		fmt.Println("Done.")
 	}
-}
-
-func getEnv(var_name string, default_val string) string {
-	if val, ok := os.LookupEnv(var_name); ok {
-		return val
-	}
-	return default_val
 }

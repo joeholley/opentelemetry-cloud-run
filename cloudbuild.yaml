@@ -35,56 +35,56 @@ steps:
     waitFor:
       - BUILD_COLLECTOR
 
-#  - name: "ubuntu"
-#    env:
-#      - "IMAGE_APP=${_IMAGE_APP}"
-#      - "IMAGE_COLLECTOR=${_IMAGE_COLLECTOR}"
-#    script: |
-#      sed -i s@%OTELCOL_IMAGE%@${IMAGE_COLLECTOR}@g run-service.yaml
-#      sed -i s@%SAMPLE_APP_IMAGE%@${IMAGE_APP}@g run-service.yaml
-#    id: REPLACE_YAML_VALUE
-#    waitFor: ["-"]
-#
-#  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk:slim"
-#    entrypoint: gcloud
-#    args:
-#      [
-#        "run",
-#        "services",
-#        "replace",
-#        "run-service.yaml",
-#        "--region",
-#        "${_REGION}",
-#      ]
-#    id: DEPLOY_MULTICONTAINER
-#    waitFor:
-#      - PUSH_SAMPLE_APP
-#      - PUSH_COLLECTOR
-#      - REPLACE_YAML_VALUE
-#
-#  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk:slim"
-#    entrypoint: gcloud
-#    args:
-#      [
-#        "run",
-#        "services",
-#        "set-iam-policy",
-#        "opentelemetry-cloud-run-sample",
-#        "policy.yaml",
-#        "--region",
-#        "${_REGION}",
-#        "--quiet",
-#      ]
-#    id: ALLOW_UNAUTHENTICATED
-#    waitFor:
-#      - DEPLOY_MULTICONTAINER
+  - name: "ubuntu"
+    env:
+      - "IMAGE_APP=${_IMAGE_APP}"
+      - "IMAGE_COLLECTOR=${_IMAGE_COLLECTOR}"
+    script: |
+      sed -i s@%OTELCOL_IMAGE%@${IMAGE_COLLECTOR}@g run-service.yaml
+      sed -i s@%SAMPLE_APP_IMAGE%@${IMAGE_APP}@g run-service.yaml
+    id: REPLACE_YAML_VALUE
+    waitFor: ["-"]
+
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk:slim"
+    entrypoint: gcloud
+    args:
+      [
+        "run",
+        "services",
+        "replace",
+        "run-service.yaml",
+        "--region",
+        "${_REGION}",
+      ]
+    id: DEPLOY_MULTICONTAINER
+    waitFor:
+      - PUSH_SAMPLE_APP
+      - PUSH_COLLECTOR
+      - REPLACE_YAML_VALUE
+
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk:slim"
+    entrypoint: gcloud
+    args:
+      [
+        "run",
+        "services",
+        "set-iam-policy",
+        "opentelemetry-cloud-run-sample",
+        "policy.yaml",
+        "--region",
+        "${_REGION}",
+        "--quiet",
+      ]
+    id: ALLOW_UNAUTHENTICATED
+    waitFor:
+      - DEPLOY_MULTICONTAINER
 
 substitutions:
-  _REGION: asia-northeast1 
-  _REGISTRY: ${_REGION}-docker.pkg.dev/${PROJECT_ID}/fm-test01-registry
+  _REGION: us-east1
+  _REGISTRY: ${_REGION}-docker.pkg.dev/${PROJECT_ID}/run-otel-example
   _IMAGE_APP: ${_REGISTRY}/sample-app
   _IMAGE_COLLECTOR: ${_REGISTRY}/collector
-#  _SA_NAME: run-otel-example-sa
+  _SA_NAME: run-otel-example-sa
 
 images:
   - ${_IMAGE_APP}
@@ -97,7 +97,8 @@ images:
 # * roles/logging.logWriter
 # * roles/artifactregistry.createOnPushWriter
 # * roles/run.admin
-#serviceAccount: "projects/${PROJECT_ID}/serviceAccounts/${_SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
+serviceAccount: "projects/${PROJECT_ID}/serviceAccounts/${_SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
 
 options:
   dynamic_substitutions: true
+  logging: CLOUD_LOGGING_ONLY
